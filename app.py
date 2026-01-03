@@ -81,7 +81,6 @@ class Mailer:
                 return False, f"🔴 {str(e)[:50]}"
         return False, "Invalid SMTP index"
 
-
     def send_campaign(self, targets, subject, template, phishing_url, delay=30):
         results = []
         total = len(targets)
@@ -157,49 +156,48 @@ with st.sidebar:
             username = st.text_input("Email/Username")
             password = st.text_input("Password", type="password")
         
-       if st.button("**🚀 ADD & TEST**", use_container_width=True):
-    config = {
-        "server": server,
-        "port": port,
-        "user": username,
-        "pass": password,
-        "name": username.split('@')[0][:10]
-    }
+        if st.button("**🚀 ADD & TEST**", use_container_width=True):
+            config = {
+                "server": server,
+                "port": port,
+                "user": username,
+                "pass": password,
+                "name": username.split('@')[0][:10]
+            }
 
-    if len(mailer.smtps) < 5:
-        mailer.add_smtp(config)
-        success, msg = mailer.test_smtp(len(mailer.smtps) - 1)
+            if len(mailer.smtps) < 5:
+                mailer.add_smtp(config)
+                success, msg = mailer.test_smtp(len(mailer.smtps) - 1)
 
-        if success:
-            st.success(f"✅ **{config['name']}** added & tested!")
-            st.rerun()
-        else:
-            st.error(f"❌ Test failed: {msg}")
-    else:
-        st.error("❌ **Max 5 accounts** - delete one first")
-
-    
-    # SMTP Status Grid
-st.header("📊 **SMTP STATUS**")
-if mailer.smtps:
-    for i, smtp in enumerate(mailer.smtps):
-        col1, col2, col3 = st.columns([2,1,1])
-        col1.metric(smtp['name'], smtp['user'])
-
-        if col2.button("🧪 **TEST**", key=f"test_{i}"):
-            with st.spinner(f"Testing {smtp['user']}..."):
-                success, msg = mailer.test_smtp(i)
                 if success:
-                    st.sidebar.success(msg)
+                    st.success(f"✅ **{config['name']}** added & tested!")
+                    st.rerun()
                 else:
-                    st.sidebar.error(msg)
+                    st.error(f"❌ Test failed: {msg}")
+            else:
+                st.error("❌ **Max 5 accounts** - delete one first")
 
-        if col3.button("🗑️", key=f"d{i}"):
-            mailer.smtps.pop(i)
-            save_json(mailer.smtps, SMTP_FILE)
-            st.rerun()
-else:
-    st.warning("👆 **Add your first SMTP account**")
+    # SMTP Status Grid
+    st.header("📊 **SMTP STATUS**")
+    if mailer.smtps:
+        for i, smtp in enumerate(mailer.smtps):
+            col1, col2, col3 = st.columns([2,1,1])
+            col1.metric(smtp['name'], smtp['user'])
+
+            if col2.button("🧪 **TEST**", key=f"test_{i}"):
+                with st.spinner(f"Testing {smtp['user']}..."):
+                    success, msg = mailer.test_smtp(i)
+                    if success:
+                        st.sidebar.success(msg)
+                    else:
+                        st.sidebar.error(msg)
+
+            if col3.button("🗑️", key=f"d{i}"):
+                mailer.smtps.pop(i)
+                save_json(mailer.smtps, SMTP_FILE)
+                st.rerun()
+    else:
+        st.warning("👆 **Add your first SMTP account**")
 
 # Main Campaign Tab
 st.header("📨 **LAUNCH CAMPAIGN**")
