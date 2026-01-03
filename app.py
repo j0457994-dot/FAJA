@@ -67,16 +67,37 @@ class Mailer:
         self.smtps.append(config)
         save_json(self.smtps, SMTP_FILE)
     
-    def test_smtp(self, idx):
+    def test_smtp(self, idx, status_key):
+    """Enhanced SMTP test with live progress"""
+    if 0 <= idx < len(self.smtps):
         config = self.smtps[idx]
+        progress = st.progress(0, key=f"prog_{status_key}")
+        status_text = st.empty(key=f"status_{status_key}")
+        
         try:
-            server = smtplib.SMTP(config['server'], config['port'], timeout=10)
+            status_text.text("🔄 Connecting...")
+            progress.progress(0.3)
+            
+            server = smtplib.SMTP(config['server'], config['port'], timeout=45)
+            progress.progress(0.6)
+            
+            status_text.text("🔄 TLS handshake...")
             server.starttls()
+            progress.progress(0.8)
+            
+            status_text.text("🔐 Authenticating...")
             server.login(config['user'], config['pass'])
             server.quit()
-            return True, "🟢 SMTP OK"
+            
+            progress.progress(1.0)
+            status_text.success("🟢 SMTP ✅ READY!")
+            time.sleep(2)
+            return True, "🟢 SMTP ✅ Connected!"
+            
         except Exception as e:
-            return False, f"🔴 {str(e)[:30]}"
+            status_text.error(f"🔴 FAILED: {str(e)[:60]}")
+            return False, f"🔴 {str(e)[:40]}"
+    return False, "🔴 Invalid"
     
     def send_campaign(self, targets, subject, template, phishing_url, delay=30):
         results = []
