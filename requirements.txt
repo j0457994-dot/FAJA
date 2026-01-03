@@ -1,6 +1,7 @@
 streamlit==1.32.0
 pandas==2.1.4
 plotly==5.17.0
-streamlit-extras==0.4.1
+streamlit-extras>=0.4.0
 pyyaml==6.0.1
 python-dotenv==1.0.0
+
