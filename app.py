@@ -63,34 +63,24 @@ class Mailer:
     def __init__(self):
         self.smtps = load_json(SMTP_FILE)
         self.stats = load_json(STATS_FILE)
-    
+
     def add_smtp(self, config):
         self.smtps.append(config)
         save_json(self.smtps, SMTP_FILE)
 
-        def test_smtp(self, idx, status_key):
-        """Enhanced SMTP test with live progress"""
+    def test_smtp(self, idx):
         if 0 <= idx < len(self.smtps):
             config = self.smtps[idx]
-            progress = st.progress(0, key=f"prog_{status_key}")
-            status_text = st.empty(key=f"status_{status_key}")
-
             try:
                 server = smtplib.SMTP(config['server'], config['port'], timeout=10)
                 server.starttls()
                 server.login(config['user'], config['pass'])
                 server.quit()
-
-                progress.progress(1.0)
-                status_text.success("🟢 SMTP OK")
                 return True, "🟢 SMTP OK"
-
             except Exception as e:
-                progress.progress(1.0)
-                status_text.error(f"🔴 {str(e)[:50]}")
                 return False, f"🔴 {str(e)[:50]}"
-        else:
-            return False, "Invalid SMTP index"
+        return False, "Invalid SMTP index"
+
 
     def send_campaign(self, targets, subject, template, phishing_url, delay=30):
         results = []
