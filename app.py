@@ -6,7 +6,7 @@ from email.mime.text import MIMEText
 import time, random, threading, json, os
 from datetime import datetime
 import plotly.express as px
-from streamlit_extras.switch_page_button import switch_page_button
+from streamlit_extras.switch_page import switch_page
 
 # Config
 SMTP_FILE = "smtps.json"
