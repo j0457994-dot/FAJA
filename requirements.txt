@@ -1,3 +1,5 @@
-streamlit==1.32.0
+streamlit==1.31.0
 pandas==2.1.4
-plotly==5.17.0
+plotly==5.18.0
+cryptography==42.0.5
+pytz==2023.3
