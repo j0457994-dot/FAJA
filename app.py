@@ -80,9 +80,11 @@ class Mailer:
                 server.starttls()
                 server.login(config['user'], config['pass'])
                 server.quit()
+
                 progress.progress(1.0)
                 status_text.success("🟢 SMTP OK")
                 return True, "🟢 SMTP OK"
+
             except Exception as e:
                 progress.progress(1.0)
                 status_text.error(f"🔴 {str(e)[:50]}")
@@ -90,7 +92,6 @@ class Mailer:
         else:
             return False, "Invalid SMTP index"
 
-    
     def send_campaign(self, targets, subject, template, phishing_url, delay=30):
         results = []
         total = len(targets)
