@@ -184,9 +184,13 @@ with st.sidebar:
         for i, smtp in enumerate(mailer.smtps):
             col1, col2, col3 = st.columns([2,1,1])
             col1.metric(smtp['name'], smtp['user'])
-            if col2.button("🧪 **TEST**", key=f"t{i}"):
-                success, msg = mailer.test_smtp(i)
-                st.rerun()
+            if col2.button("🧪 **TEST**", key=f"test_{i}"):
+    with st.spinner(f"Testing {smtp['user']}..."):
+        success, msg = mailer.test_smtp(i, f"test_{i}_{int(time.time())}")
+        if success:
+            st.sidebar.success(msg)
+        else:
+            st.sidebar.error(msg)
             if col3.button("🗑️", key=f"d{i}"):
                 mailer.smtps.pop(i)
                 save_json(mailer.smtps, SMTP_FILE)
