@@ -157,7 +157,7 @@ with st.sidebar:
             username = st.text_input("Email/Username")
             password = st.text_input("Password", type="password")
         
-        if st.button("**🚀 ADD & TEST**", use_container_width=True):
+       if st.button("**🚀 ADD & TEST**", use_container_width=True):
     config = {
         "server": server,
         "port": port,
@@ -172,11 +172,12 @@ with st.sidebar:
 
         if success:
             st.success(f"✅ **{config['name']}** added & tested!")
-            st.rerun()   # 🔥 THIS IS THE KEY LINE
+            st.rerun()
         else:
             st.error(f"❌ Test failed: {msg}")
     else:
         st.error("❌ **Max 5 accounts** - delete one first")
+
     
     # SMTP Status Grid
 st.header("📊 **SMTP STATUS**")
