@@ -158,16 +158,25 @@ with st.sidebar:
             password = st.text_input("Password", type="password")
         
         if st.button("**🚀 ADD & TEST**", use_container_width=True):
-            config = {"server": server, "port": port, "user": username, "pass": password, "name": username.split('@')[0][:10]}
-            if len(mailer.smtps) < 5:
-                mailer.add_smtp(config)
-                success, msg = mailer.test_smtp(len(mailer.smtps)-1)
-                if success:
-                    st.success(f"✅ **{config['name']}** added & tested!")
-                else:
-                    st.error(f"❌ Test failed: {msg}")
-            else:
-                st.error("❌ **Max 5 accounts** - delete one first")
+    config = {
+        "server": server,
+        "port": port,
+        "user": username,
+        "pass": password,
+        "name": username.split('@')[0][:10]
+    }
+
+    if len(mailer.smtps) < 5:
+        mailer.add_smtp(config)
+        success, msg = mailer.test_smtp(len(mailer.smtps) - 1)
+
+        if success:
+            st.success(f"✅ **{config['name']}** added & tested!")
+            st.rerun()   # 🔥 THIS IS THE KEY LINE
+        else:
+            st.error(f"❌ Test failed: {msg}")
+    else:
+        st.error("❌ **Max 5 accounts** - delete one first")
     
     # SMTP Status Grid
 st.header("📊 **SMTP STATUS**")
