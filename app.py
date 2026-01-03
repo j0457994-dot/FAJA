@@ -3,7 +3,10 @@ import pandas as pd
 import smtplib
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
-import time, random, threading, json, os
+import time
+import random
+import json
+import os
 from datetime import datetime
 import plotly.express as px
 
